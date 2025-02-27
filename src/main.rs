@@ -29,21 +29,71 @@ fn main() {
     }
 
     // Print out key statistics from the histogram.
-    println!("Histogram statistics for {} iterations:", iterations);
-    println!("Mean: {:.2} ns", histogram.mean());
-    println!(
-        "Median (50th percentile): {} ns",
-        histogram.value_at_quantile(0.5)
-    );
-    println!("90th percentile: {} ns", histogram.value_at_quantile(0.9));
-    println!("99th percentile: {} ns", histogram.value_at_quantile(0.99));
+    // println!("Histogram statistics for {} iterations:", iterations);
+    // println!("Mean: {:.2} ns", histogram.mean());
+    // println!(
+    //     "Median (50th percentile): {} ns",
+    //     histogram.value_at_quantile(0.5)
+    // );
+    // println!("90th percentile: {} ns", histogram.value_at_quantile(0.9));
+    // println!("99th percentile: {} ns", histogram.value_at_quantile(0.99));
 
+    // for v in histogram.iter_recorded() {
+    //     println!(
+    //         "{}'th percentile of data is {} with {} samples",
+    //         v.percentile(),
+    //         v.value_iterated_to(),
+    //         v.count_at_value()
+    //     );
+    // }
+
+    // Print header for the formatted table.
+    println!(
+        "{:>10} {:>15} {:>10} {:>16}",
+        "Value", "Percentile", "TotalCount", "1/(1-Percentile)"
+    );
+
+    let mut cumulative = 0;
+    // Iterate over each recorded bucket.
     for v in histogram.iter_recorded() {
-        println!(
-            "{}'th percentile of data is {} with {} samples",
-            v.percentile(),
-            v.value_iterated_to(),
-            v.count_at_value()
-        );
+        cumulative += v.count_at_value();
+        // The iterator’s percentile is given as a percentage (0.0 to 100.0);
+        // we divide by 100 to get a fraction.
+        let pct = v.quantile_iterated_to();
+        if pct < 1.0 {
+            println!(
+                "{:10.3} {:15.12} {:10} {:16.2}",
+                v.value_iterated_to(),
+                pct,
+                cumulative,
+                1.0 / (1.0 - pct)
+            );
+        } else {
+            // For the final bucket (where percentile == 1), we omit the 1/(1-Percentile) column.
+            println!(
+                "{:10.3} {:15.12} {:10}",
+                v.value_iterated_to(),
+                pct,
+                cumulative
+            );
+        }
     }
+
+    // Print a summary similar to your sample.
+    println!(
+        "#[Mean    = {:10.3}, StdDeviation   = {:10.3}]",
+        histogram.mean(),
+        histogram.stdev()
+    );
+    println!(
+        "#[Max     = {:10.3}, Total count    = {:10}]",
+        histogram.max(),
+        histogram.len()
+    );
+    println!("#[Buckets = {:10}]", histogram.buckets());
+    // println!(
+    //     "#[Buckets = {:10}, SubBuckets     = {:10}]",
+    //     histogram.buckets(),
+    //     histogram.sub_bucket_count()
+    // );
 }
