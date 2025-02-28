@@ -47,6 +47,10 @@ fn main() {
     //     );
     // }
 
+    plot_histogram(&histogram, 100, Some(0), Some(1000)); // 1000 ns = 1 us
+}
+
+pub fn print_histogram_data(histogram: &Histogram<u64>) {
     // Print header for the formatted table.
     println!(
         "{:>10} {:>15} {:>10} {:>16}",
@@ -96,4 +100,75 @@ fn main() {
     //     histogram.buckets(),
     //     histogram.sub_bucket_count()
     // );
+}
+
+pub fn plot_histogram(
+    histogram: &Histogram<u64>,
+    step: u64,
+    min_threshold: Option<u64>,
+    max_threshold: Option<u64>,
+) {
+    let max_bar_width = 50;
+
+    // Determine the maximum count in any bucket to scale the bars.
+    let max_count = histogram.len();
+
+    // Print header.
+    println!("{:>10} | {:<50} | {}", "Value", "Histogram", "Count(%)");
+    println!("{}", "-".repeat(10 + 3 + 50 + 3 + 5 + 1 + 10)); // Extra last 10 for the percentage
+
+    // Print smaller than min_threshold
+    if let Some(min) = min_threshold {
+        let percentage = histogram.percentile_below(min);
+        let bar_len = ((percentage / 100.0) * max_bar_width as f64).round() as usize;
+        let bar = "*".repeat(bar_len);
+        println!(
+            "< {:>8} | {:<50} | {:10}({:.2})",
+            min,
+            bar,
+            (percentage / 100.0 * max_count as f64) as usize,
+            percentage / 100.0
+        );
+    }
+
+    // Iterate through the histogram in linear steps.
+    for iv in histogram.iter_linear(step) {
+        // Skip buckets that are below the minimum threshold.
+        if let Some(min) = min_threshold {
+            if iv.value_iterated_to() < min {
+                continue;
+            }
+        }
+        // Stop when we reach the maximum threshold.
+        if let Some(max) = max_threshold {
+            if iv.value_iterated_to() > max {
+                break;
+            }
+        }
+        let count = iv.count_since_last_iteration();
+        // Scale the bar length relative to the maximum count.
+        let bar_len = ((count as f64 / max_count as f64) * max_bar_width as f64).round() as usize;
+        let bar = "*".repeat(bar_len);
+        println!(
+            "{:>10} | {:<50} | {:10}({:.2})",
+            iv.value_iterated_to(),
+            bar,
+            count,
+            count as f64 / max_count as f64
+        );
+    }
+
+    // Print larger than max_threshold
+    if let Some(max) = max_threshold {
+        let percentage = 100.0 - histogram.percentile_below(max);
+        let bar_len = ((percentage / 100.0) * max_bar_width as f64).round() as usize;
+        let bar = "*".repeat(bar_len);
+        println!(
+            "> {:>8} | {:<50} | {:10}({:.2})",
+            max,
+            bar,
+            (percentage / 100.0 * max_count as f64) as usize,
+            percentage / 100.0
+        );
+    }
 }
